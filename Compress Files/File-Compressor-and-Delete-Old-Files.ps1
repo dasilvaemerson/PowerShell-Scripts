@@ -1,20 +1,26 @@
 function CompressFiles {
     <#
     .SYNOPSIS
-        Create a ZIP for every file in the source folder, delete original file and delete files older than X days.
+        Create a ZIP for every file in the source folder that are older than x day, delete original file. 
+        There is an aditional option for deleting every file that is older than X days after the compression.
 
     .DESCRIPTION
-        This function can be used to compress all the files in the source folder and delete files older than X days.
+        This function can be used to compress all the files in the source folder that are older than X days.
         The original file is deleted after the compression.
         The Zip-File has the same Creation Time, Acess Time and Last Write Time as the original file.
         The Zip File is named after the original file.
-        Original File is deleted after the compression
+        There is an aditional option for deleting every file that is older than X days after the compression (Parameter -DeleteOlderThan).
 
     .PARAMETER Folder
         Specifies the target Path as a STRING. This parameter is mandatory.
 
     .PARAMETER DeleteOlderThan
-        Specifies the number of days as an INT. It will be used to delete all files in the target path that older than the given number.
+        Specifies the number of days as an INT. It will be used to delete all files in the target path that are older than the given number.
+        This parameter is mandatory.
+
+    .PARAMETER CompressionDate
+        Specifies the number of days as an INT. It will be used to compress all files in the target path that are older than the given number.
+        The original file will be deleted after the compression.
         This parameter is mandatory.
 
     .NOTES
@@ -28,7 +34,7 @@ function CompressFiles {
         If a Zip File already exists, it will be replaced
   
     .EXAMPLE
-        CompressFiles -Folder D:\ServerLog -DeleteOlderThan 15
+        CompressFiles -Folder D:\ServerLog -CompressionDate 60 -DeleteOlderThan 9999
     #>
 
     [CmdletBinding()]
@@ -36,14 +42,19 @@ function CompressFiles {
         [Parameter(Position=0,mandatory=$true)]
         [string]$Folder,
         [Parameter(Position=1,mandatory=$true)]
-        [int]$DeleteOlderThan) # end param
+        [int]$DeleteOlderThan,
+        [Parameter(Position=2,mandatory=$true)]
+        [int]$CompressionDate) # end param
     
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $excluded = @("*.bz2", "*.gz", "*.zip")
     $limit = (Get-Date).AddDays(-$DeleteOlderThan)
     $SourceFolder = $Folder
 
-    Get-ChildItem $SourceFolder -file -Exclude $excluded -Recurse | select * |
+    $refDate = (Get-Date).AddDays(-$CompressionDate)
+
+    Get-ChildItem $SourceFolder -file -Exclude $excluded -Recurse |
+    Where-Object { $_.LastWriteTime -lt $refDate } | select * |
         Foreach-Object {
         # Store the data of the original file.
         $CreationTime = $_.CreationTime
@@ -69,18 +80,19 @@ function CompressFiles {
         $_ | Remove-Item
   }
 
-# Remove every file where the modification date is older than the $limit (For example, older than 30 days)
-Get-ChildItem -Path $SourceFolder -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.LastWriteTime -lt $limit } | Remove-Item -Force
+    # Remove every file where the modification date is older than the $limit (For example, older than 30 days)
+    Get-ChildItem -Path $SourceFolder -Recurse -Force | Where-Object { !$_.PSIsContainer -and $_.LastWriteTime -lt $limit } | Remove-Item -Force
 
-try
-{
-    # >>>>>> Insert script here.
-}
-finally
-{
-    Write-Output "Compression of $SourceFolder Done. Elapsed time: $($stopwatch.Elapsed)"
-}
+    try
+    {
+        # >>>>>> Insert script here.
+    }
+
+    finally
+    {
+        Write-Output "Compression of $SourceFolder Done. Elapsed time: $($stopwatch.Elapsed)"
+    }
 
 }
 
-CompressFiles -Folder D:\ServerLog -DeleteOlderThan 15
+CompressFiles -Folder D:\ServerLog -CompressionDate 60 -DeleteOlderThan 9999
