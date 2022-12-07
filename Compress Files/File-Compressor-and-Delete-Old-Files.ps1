@@ -68,6 +68,16 @@ function CompressFiles {
 
     $refDate = (Get-Date).AddDays(-$CompressionDate)
 
+    # TEST IF THE GIVEN PATH IS VALID
+    if(Test-Path -Path $Folder){
+        Write-Output "Path $Folder found"
+    } 
+    else {
+        Write-Output "ERROR - PATH NOT FOUND: $Folder "
+        Write-Host "Closing application..."
+        Exit
+        }
+
     # COMPRESS FILES OLDER THAN X
     Get-ChildItem $SourceFolder -file -Recurse:$Recurse |
     Where {$_.FullName -notlike "*.bz2"} | Where {$_.FullName -notlike "*.gz"} | Where {$_.FullName -notlike "*.zip"} |
